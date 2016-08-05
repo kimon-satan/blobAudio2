@@ -216,10 +216,23 @@ function initAudio() {
 }
 
 function ControlPanel() {
- this.speed = 1.33;
+ this.speed = kSpeed;
  this.pitch = kPitch;
  this.pitchRandomization = kPitchRandomization;
+ this.timeRandomization = kTimeRandomization;
+ this.diffusionRandomization = kDiffusionRandomization;
+ this.panningRandomization = kPanningRandomization;
+ this.grainSize = kGrainSize;
 }
+
+
+/*
+
+
+configureSlider("timeRandomization", 0.0, 0.0, 1.0, timeRandomizationHandler);
+configureSlider("diffusionRandomization", kDiffusionRandomization, 0.0, 1.0, diffusionRandomizationHandler);
+configureSlider("panningRandomization", kPanningRandomization, 0.0, 1.0, panningRandomizationHandler);
+configureSlider("grainSize", kGrainSize, 0.010, 0.5, grainSizeHandler);*/
 
 function init() {
 
@@ -228,16 +241,28 @@ function init() {
   var gui = new dat.GUI();
   gui.remember(controlPanel);
 
+  //speed is a special case
   var speedHandler = gui.add(controlPanel, 'speed', -4.0, 4.0).step(0.01);
+
+  speedHandler.onChange (function(val){
+    speed = val;
+    if(Math.abs(speed) < 0.4)speed += 0.4 * Math.sign(speed);
+  });
+
+  var handlers = {};
+
+  //TODO make a parameters object to store all of this
+  // for (var property in controlPanel) {
+  //   if(property != "speed"){
+  //     handlers[property] = gui.add(controlPanel, property, )
+  //   }
+  // }
+
+
   var pitchHandler = gui.add(controlPanel, 'pitch', -3600.0, 1800.0).step(10.0);
   var pitchRandomizationHandler = gui.add(controlPanel, 'pitchRandomization', 0.0, 1200.0).step(10.0);
 
-  speedHandler.onChange (function(val){
 
-    speed = val;
-    if(Math.abs(speed) < 0.4)speed += 0.4 * Math.sign(speed);
-
-  });
 
   pitchHandler.onChange(function(val){
     pitch = val;
@@ -249,14 +274,7 @@ function init() {
 
     initAudio();
 
-    /*
 
-    configureSlider("pitch", kPitch, -3600.0, 1800.0, pitchHandler);
-    configureSlider("pitchRandomization", 0.0, 0.0, 1200.0, pitchRandomizationHandler);
-    configureSlider("timeRandomization", 0.0, 0.0, 1.0, timeRandomizationHandler);
-    configureSlider("diffusionRandomization", kDiffusionRandomization, 0.0, 1.0, diffusionRandomizationHandler);
-    configureSlider("panningRandomization", kPanningRandomization, 0.0, 1.0, panningRandomizationHandler);
-    configureSlider("grainSize", kGrainSize, 0.010, 0.5, grainSizeHandler);*/
 
   /*  var ui = {value: 1.0};
 
