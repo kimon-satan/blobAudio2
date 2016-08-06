@@ -25,7 +25,7 @@ var env;
 
 var parameters =
 {
-  speed: {value: 0.333, min: -4.0, max: 4.0, gui: true , custom: true, step: 0.01},
+  speed: {value: 0.333, min: -4.0, max: 4.0, gui: true , step: 0.01},
   pitch: {value: 1.0, min: 1.0, max: 3600, gui: true, step: 10},
   pitchRandomization: {value: 0.0, min: 0.0, max: 1200.0, gui: true, step: 10},
   timeRandomization:{value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.01},
@@ -33,7 +33,7 @@ var parameters =
   grainDuration:{value: 0.09 , min:0.010, max:0.5, gui:true , step: 0.001},
   grainSpacing:{value: 0.045 , min:0.010, max:0.5, gui:true , step: 0.001},
   regionStart: {value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.001},
-  regionLength: {value: 0.01 , min:0.0, max:20.0, gui:true , step : 0.01}
+  regionLength: {value: 0.01 , min:0.0, max:2.0, gui:true , step : 0.01}
 }
 
 
@@ -206,8 +206,9 @@ function initAudio()
   }
 
 
-  loadSample("samples/138344_reverse_crow.wav");
-
+  //loadSample("samples/138344_reverse_crow.wav");
+  //loadSample("samples/19997_blackbird_flap.wav");
+  loadSample("samples/19997_blackbird.wav");
   // this could be made more flexible
   env = new Envelope2(0.5,0.2,60);
 
@@ -275,7 +276,7 @@ function nextGrain()
   var lastGrainTime = grainTime;
 
   // Update time params
-  realTime += parameters.grainDuration.value;
+  realTime += parameters.grainSpacing.value;
 
   grainTime += parameters.speed.value * parameters.grainDuration.value;
 
@@ -347,11 +348,6 @@ function init()
 
   //CUSTOM HANDLERS
 
-  events.speed.onChange (function(val){
-    parameters.speed.value = Math.max(Math.abs(val),0.05);
-    parameters.speed.value *= Math.sign(val);
-    controlPanel.speed = parameters.speed.value;
-  });
 
   events.grainSize.onChange (function(val){
     parameters.grainDuration.value = val;
