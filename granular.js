@@ -1,7 +1,10 @@
 //GLOBALS
 
 var canvas;
-var context;
+var gui;
+var controlPanel;
+var audioContext;
+
 var compressor;
 
 var buffer = 0;
@@ -9,9 +12,6 @@ var bufferDuration = 58.0;
 
 var realTime = 0.0;
 var grainTime = 0.0;
-
-var grainDuration = 0.09;
-var grainSpacing = 0.5 * 0.09;
 
 var isSourceLoaded = false;
 var applyGrainWindow = false;
@@ -29,7 +29,11 @@ var parameters =
   pitch: {value: 1.0, min: 1.0, max: 3600, gui: true, step: 10},
   pitchRandomization: {value: 0.0, min: 0.0, max: 1200.0, gui: true, step: 10},
   timeRandomization:{value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.01},
-  grainSize:{value: 0.09 , min:0.010, max:0.5, gui:true , custom: true, step: 0.01}
+  grainSize:{value: 0.09 , min:0.010, max:0.5, gui:true , custom: true, step: 0.01},
+  grainDuration:{value: 0.09 , min:0.010, max:0.5, gui:true , step: 0.001},
+  grainSpacing:{value: 0.045 , min:0.010, max:0.5, gui:true , step: 0.001},
+  regionStart: {value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.001},
+  regionLength: {value: 0.01 , min:0.0, max:20.0, gui:true , step : 0.01}
 }
 
 
@@ -41,12 +45,11 @@ $('document').ready(function(){
   canvas.setAttribute('width', window.innerWidth);
   canvas.setAttribute('height', window.innerHeight);
   var ctxt = canvas.getContext('2d');
-  ctxt.fillStyle = "black";
-  ctxt.fillRect(0,0,canvas.width, canvas.height);
+
   window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
-  context = new AudioContext();
-  realTime = Math.max(0, context.currentTime);
+  audioContext = new AudioContext();
+  realTime = Math.max(0, audioContext.currentTime);
 
   init(); //makes the gui
   initAudio();
@@ -77,6 +80,7 @@ $('document').ready(function(){
     if(!isUnlocked){
       isUnlocked = true;
     }
+
 
     env.targetVal = 1.0;
 
@@ -109,6 +113,16 @@ function render() {
   if(accumulator > 1.0/60)
   {
     updateAudio();
+    draw();
+
+    // Iterate over all controllers
+    if(gui !== undefined)
+    {
+      for (var i in gui.__controllers) {
+        gui.__controllers[i].updateDisplay();
+      }
+    }
+
   }
 
   requestAnimationFrame(render);
@@ -117,11 +131,29 @@ function render() {
 
 render();
 
+function draw()
+{
+
+  var ctx = canvas.getContext("2d");
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,canvas.width, canvas.height);
+  var radius = env.z * 100.0;
+  ctx.fillStyle="#FF0000";
+  ctx.beginPath();
+  ctx.arc(200,200,radius,0,2*Math.PI);
+  ctx.fill();
+
+}
+
+
+
+
+
 ////////////////////////////////////////////AUDIO CTRL THREAD///////////////////////////////////
 
 function updateAudio()
 {
-    var currentTime = context.currentTime;
+    var currentTime = audioContext.currentTime;
 
     env.step();
 
@@ -132,7 +164,7 @@ function updateAudio()
 
       while (realTime < currentTime + 0.100)
       {
-        scheduleGrain();
+        nextGrain();
       }
 
     }
@@ -144,7 +176,7 @@ function updateAudio()
 function initAudio()
 {
 
-  if (context.decodeAudioData)
+  if (audioContext.decodeAudioData)
   {
     applyGrainWindow = true;
 
@@ -161,20 +193,20 @@ function initAudio()
     applyGrainWindow = false;
   }
 
-  if (context.createDynamicsCompressor)
+  if (audioContext.createDynamicsCompressor)
   {
     // Create dynamics compressor to sweeten the overall mix.
-    compressor = context.createDynamicsCompressor();
-    compressor.connect(context.destination);
+    compressor = audioContext.createDynamicsCompressor();
+    compressor.connect(audioContext.destination);
   }
   else
   {
     // Compressor is not available on this implementation - bypass and simply point to destination.
-    compressor = context.destination;
+    compressor = audioContext.destination;
   }
 
 
-  load(); //load the audio files
+  loadSample("samples/138344_reverse_crow.wav");
 
   // this could be made more flexible
   env = new Envelope2(0.5,0.2,60);
@@ -183,8 +215,8 @@ function initAudio()
 
 
 
-function scheduleGrain() {
-
+function nextGrain()
+{
   //plays an individual grain
 
   if (!buffer)
@@ -192,7 +224,7 @@ function scheduleGrain() {
     return;
   }
 
-  var source = context.createBufferSource();
+  var source = audioContext.createBufferSource();
   source.buffer = buffer;
 
   var r1 = Math.random();
@@ -204,12 +236,12 @@ function scheduleGrain() {
 
   var grainWindowNode;
 
-  var gainNode = context.createGain();
+  var gainNode = audioContext.createGain();
   gainNode.gain.value =  env.z;
 
   if (applyGrainWindow) {
     // Create a gain node with a special "grain window" shaping curve.
-    grainWindowNode = context.createGain();
+    grainWindowNode = audioContext.createGain();
     source.connect(grainWindowNode);
     grainWindowNode.connect(gainNode);
 
@@ -228,13 +260,14 @@ function scheduleGrain() {
   var randomGrainOffset = r2 * parameters.timeRandomization.value;
 
   // Schedule sound grain
-  source.start(realTime, grainTime + randomGrainOffset, grainDuration);
+  var offset = Math.max(0,grainTime + randomGrainOffset);
+  source.start(realTime,offset , parameters.grainDuration.value);
 
   // Schedule the grain window.
   // This applies a time-varying gain change for smooth fade-in / fade-out.
   if (applyGrainWindow)
   {
-    var windowDuration = grainDuration / pitchRate;
+    var windowDuration = parameters.grainDuration.value / pitchRate;
     grainWindowNode.gain.value = 0.0; // make default value 0
     grainWindowNode.gain.setValueCurveAtTime(grainWindow, realTime, windowDuration);
   }
@@ -242,13 +275,22 @@ function scheduleGrain() {
   var lastGrainTime = grainTime;
 
   // Update time params
-  realTime += grainSpacing;
+  realTime += parameters.grainDuration.value;
 
-  grainTime += parameters.speed.value * grainSpacing;
+  grainTime += parameters.speed.value * parameters.grainDuration.value;
 
   //grain time wrapping
-  if (grainTime > bufferDuration) grainTime = 0.0;
-  if (grainTime < 0.0) grainTime += bufferDuration; // backwards wrap-around
+  var regionStart = parameters.regionStart.value * bufferDuration;
+  var regionEnd = Math.min(bufferDuration, regionStart  + parameters.regionLength.value);
+
+  if (grainTime > regionEnd)
+  {
+    grainTime = regionStart;
+  }
+  else if (grainTime < regionStart)
+  {
+    grainTime += Math.min( bufferDuration - regionStart, parameters.regionLength.value);
+  }
 
 }
 
@@ -273,8 +315,8 @@ function init()
 {
 
 
-  var controlPanel = new ControlPanel();
-  var gui = new dat.GUI();
+  controlPanel = new ControlPanel();
+  gui = new dat.GUI();
   gui.remember(controlPanel);
   var events = {};
 
@@ -294,6 +336,7 @@ function init()
 
           events[property].onChange(function(value) {
             parameters[this.property].value = value;
+            controlPanel[this.property] = value;
           });
 
         }
@@ -307,12 +350,15 @@ function init()
   events.speed.onChange (function(val){
     parameters.speed.value = Math.max(Math.abs(val),0.05);
     parameters.speed.value *= Math.sign(val);
+    controlPanel.speed = parameters.speed.value;
   });
 
   events.grainSize.onChange (function(val){
-    grainDuration = val;
-    grainSpacing = 0.5 * grainDuration;
+    parameters.grainDuration.value = val;
+    parameters.grainSpacing.value = 0.5 * parameters.grainDuration.value;
     parameters.grainSize.value = val;
+    controlPanel.grainDuration = parameters.grainDuration.value;
+    controlPanel.grainSpacing = parameters.grainSpacing.value;
   });
 
 
@@ -320,41 +366,10 @@ function init()
 
 /////////////////////////////////////////FILE LOADING///////////////////////////////////////
 
-function load() {
-  // loadImpulseResponse('impulse-responses/spatialized4.wav');
-  //loadImpulseResponse('impulse-responses/matrix-reverb5.wav');
-  loadHumanVoice("samples/138344_reverse_crow.wav");
-}
 
-function loadImpulseResponse(url) {
-  // Load impulse response asynchronously
 
-  var request = new XMLHttpRequest();
-  request.open("GET", url, true);
-  request.responseType = "arraybuffer";
 
-  request.onload = function() {
-    context.decodeAudioData(
-      request.response,
-      function(buffer) {
-        convolver.buffer = buffer;
-        isImpulseResponseLoaded = true;
-        finishLoading();
-      },
-
-      function(buffer) {
-        console.log("Error decoding impulse response!");
-      }
-    );
-  }
-  request.onerror = function() {
-    alert("error loading reverb");
-  }
-
-  request.send();
-}
-
-function loadHumanVoice(url) {
+function loadSample(url) {
   // Load asynchronously
 
   var request = new XMLHttpRequest();
@@ -362,7 +377,7 @@ function loadHumanVoice(url) {
   request.responseType = "arraybuffer";
 
   request.onload = function() {
-    context.decodeAudioData(
+    audioContext.decodeAudioData(
       request.response,
       function(b) {
         buffer = b;
@@ -393,11 +408,11 @@ function unlock() {
   console.log("unlocking")
 
   // create empty buffer and play it
-  var buffer = context.createBuffer(1, 1, 22050);
-  var source = context.createBufferSource();
+  var buffer = audioContext.createBuffer(1, 1, 22050);
+  var source = audioContext.createBufferSource();
 
   source.buffer = buffer;
-  source.connect(context.destination);
+  source.connect(audioContext.destination);
   source.noteOn(0);
 
   // by checking the play state after some time, we know if we're really unlocked
