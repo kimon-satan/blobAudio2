@@ -11,25 +11,15 @@ var compressor;
 var buffer = 0;
 var bufferDuration = 58.0;
 
-var kSpeed = 0.05;
-var kPitch = 0.0;
-var kDiffusionRandomization = 0.2;
-var kPanningRandomization = 0.15;
-var kPitchRandomization = 0.0;
-var kTimeRandomization = 0.0;
-var kGrainSize = 0.090;
 
-var speed = 0.3333;
-var pitch = 1.0;
-var pitchRandomization = kPitchRandomization;
-var panningRandomization = kPanningRandomization;
+var kDiffusionRandomization = 0.2;
 var diffusionRandomization = kDiffusionRandomization;
-var timeRandomization = 0.0;
+
 var realTime = 0.0;
 var grainTime = 0.0;
 
-var grainDuration = kGrainSize;
-var grainSpacing = 0.5 * kGrainSize;
+var grainDuration = 0.09;
+var grainSpacing = 0.5 * 0.09;
 
 var isSourceLoaded = false;
 var isImpulseResponseLoaded = false;
@@ -37,341 +27,295 @@ var isImpulseResponseLoaded = false;
 var applyGrainWindow = false;
 var grainWindow;
 
-//currently unused event handlers
-
-/*
 
 
-
-function timeRandomizationHandler(event, ui) {
-    timeRandomization = parseFloat(ui.value);
-
-    var info = document.getElementById("timeRandomization-value");
-    info.innerHTML = "timeRandomization = " + timeRandomization + " seconds";
+var parameters = {
+  speed: {value: 0.333, min: -4.0, max: 4.0, gui: true , custom: true},
+  pitch: {value: 1.0, min: 1.0, max: 3600, gui: true},
+  pitchRandomization: {value: 0.0, min: 0.0, max: 1200.0, gui: true},
+  panningRandomization: {value: 0.0 , min:0.0, max:1.0, gui:true },
+  timeRandomization:{value: 0.0 , min:0.0, max:1.0, gui:true },
+  grainSize:{value: 0.09 , min:0.010, max:0.5, gui:true , custom: true},
 }
-
-function diffusionRandomizationHandler(event, ui) {
-    diffusionRandomization = parseFloat(ui.value);
-
-    var info = document.getElementById("diffusionRandomization-value");
-    info.innerHTML = "diffusionRandomization = " + diffusionRandomization*100.0 + "%";
-}
-
-function panningRandomizationHandler(event, ui) {
-    panningRandomization = parseFloat(ui.value);
-
-    var info = document.getElementById("panningRandomization-value");
-    info.innerHTML = "panningRandomization = " + panningRandomization*100.0 + "%";
-}
-
-function grainSizeHandler(event, ui) {
-    grainDuration = parseFloat(ui.value);
-    grainSpacing = 0.25 * grainDuration;
-
-    var info = document.getElementById("grainSize-value");
-    info.innerHTML = "grainSize = " + grainDuration + " seconds";
-}*/
-
-
 
 
 function scheduleGrain() {
 
-
-    if (!buffer)
-        return;
-
+  if (!buffer)
+  return;
 
 
-    var source = context.createBufferSource();
-    source.buffer = buffer;
+  var source = context.createBufferSource();
+  source.buffer = buffer;
 
-    var r = Math.random();
-    var r2 = Math.random();
-    var r3 = Math.random();
-    var r4 = Math.random();
-    var r5 = Math.random();
-    r1 = (r - 0.5) * 2.0;
-    r2 = (r2 - 0.5) * 2.0;
-    r3 = (r3 - 0.5) * 2.0;
-    r4 = (r4 - 0.5) * 2.0;
+  var r = Math.random();
+  var r2 = Math.random();
+  var r3 = Math.random();
+  var r4 = Math.random();
+  var r5 = Math.random();
+  r1 = (r - 0.5) * 2.0;
+  r2 = (r2 - 0.5) * 2.0;
+  r3 = (r3 - 0.5) * 2.0;
+  r4 = (r4 - 0.5) * 2.0;
 
-    // Spatialization
-    var panner = context.createPanner();
+  // Spatialization
+  var panner = context.createPanner();
 
-    var grainWindowNode;
-    if (applyGrainWindow) {
-        // Create a gain node with a special "grain window" shaping curve.
-        grainWindowNode = context.createGain();
-        source.connect(grainWindowNode);
-        grainWindowNode.connect(panner);
-    } else {
-        source.connect(panner);
-    }
+  var grainWindowNode;
+  if (applyGrainWindow) {
+    // Create a gain node with a special "grain window" shaping curve.
+    grainWindowNode = context.createGain();
+    source.connect(grainWindowNode);
+    grainWindowNode.connect(panner);
+  } else {
+    source.connect(panner);
+  }
 
-    var distance = 2.0;
-    var azimuth = Math.PI * panningRandomization * r3;
-    var elevation = Math.PI * (0.25 + 0.75 * panningRandomization * r4);
+  var distance = 2.0;
+  var azimuth = Math.PI * parameters.panningRandomization.value * r3;
+  var elevation = Math.PI * (0.25 + 0.75 * parameters.panningRandomization.value * r4);
 
-    var x = Math.sin(azimuth);
-    var z = Math.cos(azimuth);
-    var y = Math.sin(elevation);
-    var scaleXZ = Math.cos(elevation);
+  var x = Math.sin(azimuth);
+  var z = Math.cos(azimuth);
+  var y = Math.sin(elevation);
+  var scaleXZ = Math.cos(elevation);
 
-    x *= distance * scaleXZ;
-    y *= distance;
-    z *= distance * scaleXZ;
+  x *= distance * scaleXZ;
+  y *= distance;
+  z *= distance * scaleXZ;
 
-    panner.panningModel = "HRTF";
-    panner.setPosition(x, y, z);
+  panner.panningModel = "HRTF";
+  panner.setPosition(x, y, z);
 
-    var dryGainNode = context.createGain();
-    var wetGainNode = context.createGain();
-    wetGainNode.gain.value = 0.5 * diffusionRandomization * r5;
-    dryGainNode.gain.value = 1.0 - wetGainNode.gain.value;
+  var dryGainNode = context.createGain();
+  var wetGainNode = context.createGain();
+  wetGainNode.gain.value = 0.5 * diffusionRandomization * r5;
+  dryGainNode.gain.value = 1.0 - wetGainNode.gain.value;
 
-    // Pitch
-    var totalPitch = pitch + r1 * pitchRandomization;
-    var pitchRate = Math.pow(2.0, totalPitch / 1200.0);
-    source.playbackRate.value = pitchRate;
+  // Pitch
+  var totalPitch = parameters.pitch.value + r1 * parameters.pitchRandomization.value;
+  var pitchRate = Math.pow(2.0, totalPitch / 1200.0);
+  source.playbackRate.value = pitchRate;
 
-    // Connect dry mix
-    panner.connect(dryGainNode);
-    dryGainNode.connect(compressor);
+  // Connect dry mix
+  panner.connect(dryGainNode);
+  dryGainNode.connect(compressor);
 
-    // Connect wet mix
-    panner.connect(wetGainNode);
-    wetGainNode.connect(compressor);
+  // Connect wet mix
+  panner.connect(wetGainNode);
+  wetGainNode.connect(compressor);
 
-    // Time randomization
-    var randomGrainOffset = r2 * timeRandomization;
+  // Time randomization
+  var randomGrainOffset = r2 * parameters.timeRandomization.value;
 
-    // Schedule sound grain
-    source.start(realTime, grainTime + randomGrainOffset, grainDuration);
+  // Schedule sound grain
+  source.start(realTime, grainTime + randomGrainOffset, grainDuration);
 
-    // Schedule the grain window.
-    // This applies a time-varying gain change for smooth fade-in / fade-out.
-    if (applyGrainWindow) {
-        var windowDuration = grainDuration / pitchRate;
-        grainWindowNode.gain.value = 0.0; // make default value 0
-        grainWindowNode.gain.setValueCurveAtTime(grainWindow, realTime, windowDuration);
-    }
+  // Schedule the grain window.
+  // This applies a time-varying gain change for smooth fade-in / fade-out.
+  if (applyGrainWindow) {
+    var windowDuration = grainDuration / pitchRate;
+    grainWindowNode.gain.value = 0.0; // make default value 0
+    grainWindowNode.gain.setValueCurveAtTime(grainWindow, realTime, windowDuration);
+  }
 
-    var lastGrainTime = grainTime;
+  var lastGrainTime = grainTime;
 
-    // Update time params
-    realTime += grainSpacing;
-    grainTime += speed * grainSpacing;
-    if (grainTime > bufferDuration) grainTime = 0.0;
-    if (grainTime < 0.0) grainTime += bufferDuration; // backwards wrap-around
+  // Update time params
+  realTime += grainSpacing;
+  grainTime += parameters.speed.value * grainSpacing;
+  if (grainTime > bufferDuration) grainTime = 0.0;
+  if (grainTime < 0.0) grainTime += bufferDuration; // backwards wrap-around
 }
 
 function schedule() {
 
-    var currentTime = context.currentTime;
+  var currentTime = context.currentTime;
 
-    while (realTime < currentTime + 0.100) {
-        scheduleGrain();
-    }
+  while (realTime < currentTime + 0.100) {
+    scheduleGrain();
+  }
 
-    setTimeout("schedule()", 20);
+  setTimeout("schedule()", 20);
 }
 
 function initAudio() {
-    context = new AudioContext();
+  context = new AudioContext();
 
-    // This check is a hack and will only be needed temporarily.
-    // The reason is that the noteGrainOn() method used to (in older builds) apply a hard-coded amplitude window.
-    // The newer and more flexible approach is that noteGrainOn() simply plays a portion of an AudioBuffer,
-    // without any gain scaling.  Then we can apply a gain scaling (which is desired in this example)
-    // by using an AudioGainNode.
-    // We check the existence of the decodeAudioData() only because this is the time when the change in noteGrainOn()
-    // behavior happened -- yucky, but only temporary since it can be removed in a few weeks when all builds have the new behavior.
-    if (context.decodeAudioData) {
-        applyGrainWindow = true;
-        // Create a granular synthesis "grain window"
-        // Each small audio snippet will have a smooth fade-in / fade-out according to this shape.
-        var grainWindowLength = 16384;
-        grainWindow = new Float32Array(grainWindowLength);
-        for (var i = 0; i < grainWindowLength; ++i)
-            grainWindow[i] = Math.sin(Math.PI * i / grainWindowLength);
-    } else {
-        applyGrainWindow = false;
-    }
+  // This check is a hack and will only be needed temporarily.
+  // The reason is that the noteGrainOn() method used to (in older builds) apply a hard-coded amplitude window.
+  // The newer and more flexible approach is that noteGrainOn() simply plays a portion of an AudioBuffer,
+  // without any gain scaling.  Then we can apply a gain scaling (which is desired in this example)
+  // by using an AudioGainNode.
+  // We check the existence of the decodeAudioData() only because this is the time when the change in noteGrainOn()
+  // behavior happened -- yucky, but only temporary since it can be removed in a few weeks when all builds have the new behavior.
+  if (context.decodeAudioData) {
+    applyGrainWindow = true;
+    // Create a granular synthesis "grain window"
+    // Each small audio snippet will have a smooth fade-in / fade-out according to this shape.
+    var grainWindowLength = 16384;
+    grainWindow = new Float32Array(grainWindowLength);
+    for (var i = 0; i < grainWindowLength; ++i)
+    grainWindow[i] = Math.sin(Math.PI * i / grainWindowLength);
+  } else {
+    applyGrainWindow = false;
+  }
 
-    if (context.createDynamicsCompressor) {
-        // Create dynamics compressor to sweeten the overall mix.
-        compressor = context.createDynamicsCompressor();
-        compressor.connect(context.destination);
-    } else {
-        // Compressor is not available on this implementation - bypass and simply point to destination.
-        compressor = context.destination;
-    }
+  if (context.createDynamicsCompressor) {
+    // Create dynamics compressor to sweeten the overall mix.
+    compressor = context.createDynamicsCompressor();
+    compressor.connect(context.destination);
+  } else {
+    // Compressor is not available on this implementation - bypass and simply point to destination.
+    compressor = context.destination;
+  }
 
-    // Create a convolver for ambience
-    //convolver = context.createConvolver();
-    //convolver.connect(compressor);
+  // Create a convolver for ambience
+  //convolver = context.createConvolver();
+  //convolver.connect(compressor);
 
-    load();
-}
-
-function ControlPanel() {
- this.speed = kSpeed;
- this.pitch = kPitch;
- this.pitchRandomization = kPitchRandomization;
- this.timeRandomization = kTimeRandomization;
- this.diffusionRandomization = kDiffusionRandomization;
- this.panningRandomization = kPanningRandomization;
- this.grainSize = kGrainSize;
+  load();
 }
 
 
-/*
+
+function ControlPanel()
+{
+
+  for (var property in parameters)
+  {
+    if (parameters.hasOwnProperty(property))
+    {
+      this[property] = parameters[property].value;
+    }
+  }
+
+}
 
 
-configureSlider("timeRandomization", 0.0, 0.0, 1.0, timeRandomizationHandler);
-configureSlider("diffusionRandomization", kDiffusionRandomization, 0.0, 1.0, diffusionRandomizationHandler);
-configureSlider("panningRandomization", kPanningRandomization, 0.0, 1.0, panningRandomizationHandler);
-configureSlider("grainSize", kGrainSize, 0.010, 0.5, grainSizeHandler);*/
 
-function init() {
+function init()
+{
 
 
   var controlPanel = new ControlPanel();
   var gui = new dat.GUI();
   gui.remember(controlPanel);
+  var events = {};
 
-  //speed is a special case
-  var speedHandler = gui.add(controlPanel, 'speed', -4.0, 4.0).step(0.01);
+  for (var property in parameters)
+  {
+    if (parameters.hasOwnProperty(property)) {
+      if(parameters[property].gui){
 
-  speedHandler.onChange (function(val){
-    speed = val;
-    if(Math.abs(speed) < 0.4)speed += 0.4 * Math.sign(speed);
+        events[property] = gui.add(controlPanel, property, parameters[property].min, parameters[property].max);
+
+        if(!parameters[property].custom){
+
+          events[property].onChange(function(value) {
+            parameters[this.property].value = value;
+          });
+
+        }
+
+      }
+    }
+  }
+
+  //CUSTOM HANDLERS
+
+  events.speed.onChange (function(val){
+    parameters.speed.value = Math.max(Math.abs(val),0.05);
+    parameters.speed.value *= Math.sign(val);
   });
 
-  var handlers = {};
-
-  //TODO make a parameters object to store all of this
-  // for (var property in controlPanel) {
-  //   if(property != "speed"){
-  //     handlers[property] = gui.add(controlPanel, property, )
-  //   }
-  // }
-
-
-  var pitchHandler = gui.add(controlPanel, 'pitch', -3600.0, 1800.0).step(10.0);
-  var pitchRandomizationHandler = gui.add(controlPanel, 'pitchRandomization', 0.0, 1200.0).step(10.0);
-
-
-
-  pitchHandler.onChange(function(val){
-    pitch = val;
+  events.grainSize.onChange (function(val){
+    grainDuration = val;
+    grainSpacing = 0.5 * grainDuration;
+    parameters.grainSize.value = val;
   });
 
-  pitchRandomizationHandler.onChange(function(val){
-    pitchRandomization = val;
-  });
 
-    initAudio();
+  initAudio();
 
 
-
-  /*  var ui = {value: 1.0};
-
-    ui.value = kSpeed;
-    speedHandler(0, ui);
-
-    ui.value = kPitch;
-    pitchHandler(0, ui);
-
-    ui.value = kPitchRandomization;
-    pitchRandomizationHandler(0, ui);
-
-    ui.value = kTimeRandomization;
-    timeRandomizationHandler(0, ui);
-
-    ui.value = kDiffusionRandomization;
-    diffusionRandomizationHandler(0, ui);
-
-    ui.value = kPanningRandomization;
-    panningRandomizationHandler(0, ui);*/
 }
 
 function load() {
-    // loadImpulseResponse('impulse-responses/spatialized4.wav');
-    //loadImpulseResponse('impulse-responses/matrix-reverb5.wav');
-    loadHumanVoice("samples/138344_reverse_crow.wav");
+  // loadImpulseResponse('impulse-responses/spatialized4.wav');
+  //loadImpulseResponse('impulse-responses/matrix-reverb5.wav');
+  loadHumanVoice("samples/138344_reverse_crow.wav");
 }
 
 function loadImpulseResponse(url) {
-    // Load impulse response asynchronously
+  // Load impulse response asynchronously
 
-    var request = new XMLHttpRequest();
-    request.open("GET", url, true);
-    request.responseType = "arraybuffer";
+  var request = new XMLHttpRequest();
+  request.open("GET", url, true);
+  request.responseType = "arraybuffer";
 
-    request.onload = function() {
-        context.decodeAudioData(
-            request.response,
-            function(buffer) {
-                convolver.buffer = buffer;
-                isImpulseResponseLoaded = true;
-                finishLoading();
-            },
+  request.onload = function() {
+    context.decodeAudioData(
+      request.response,
+      function(buffer) {
+        convolver.buffer = buffer;
+        isImpulseResponseLoaded = true;
+        finishLoading();
+      },
 
-            function(buffer) {
-                console.log("Error decoding impulse response!");
-            }
-        );
-    }
-    request.onerror = function() {
-        alert("error loading reverb");
-    }
+      function(buffer) {
+        console.log("Error decoding impulse response!");
+      }
+    );
+  }
+  request.onerror = function() {
+    alert("error loading reverb");
+  }
 
-    request.send();
+  request.send();
 }
 
 function loadHumanVoice(url) {
-    // Load asynchronously
+  // Load asynchronously
 
-    var request = new XMLHttpRequest();
-    request.open("GET", url, true);
-    request.responseType = "arraybuffer";
+  var request = new XMLHttpRequest();
+  request.open("GET", url, true);
+  request.responseType = "arraybuffer";
 
-    request.onload = function() {
-        context.decodeAudioData(
-            request.response,
-            function(b) {
-                buffer = b;
-                bufferDuration = buffer.duration - 0.050;
-                isSourceLoaded = true;
-                finishLoading();  // we have the voice, put up sliders and start playing...
-            },
+  request.onload = function() {
+    context.decodeAudioData(
+      request.response,
+      function(b) {
+        buffer = b;
+        bufferDuration = buffer.duration - 0.050;
+        isSourceLoaded = true;
+        finishLoading();  // we have the voice, put up sliders and start playing...
+      },
 
-            function(buffer) {
-                console.log("Error decoding human voice!");
-            }
-        );
-    };
+      function(buffer) {
+        console.log("Error decoding human voice!");
+      }
+    );
+  };
 
-    request.onerror = function() {
-        alert("error loading");
-    };
+  request.onerror = function() {
+    alert("error loading");
+  };
 
-    request.send();
+  request.send();
 }
 
 function finishLoading() {
 
 
   //  if (!isSourceLoaded || !isImpulseResponseLoaded)
-    //    return;
+  //    return;
 
-    // first, get rid of loading animation
+  // first, get rid of loading animation
   //  var loading = document.getElementById("loading");
   //  loading.innerHTML = "";
 
-    // start playing the granular effect
-    realTime = Math.max(0, context.currentTime);
-      schedule();
+  // start playing the granular effect
+  realTime = Math.max(0, context.currentTime);
+  schedule();
 }
