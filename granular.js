@@ -1,8 +1,4 @@
-// Temporary patch until all browsers support unprefixed context.
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
-
-// init() once the page has finished loading.
-window.onload = init;
+//GLOBALS
 
 var context;
 var convolver;
@@ -10,7 +6,6 @@ var compressor;
 
 var buffer = 0;
 var bufferDuration = 58.0;
-
 
 var kDiffusionRandomization = 0.2;
 var diffusionRandomization = kDiffusionRandomization;
@@ -27,6 +22,10 @@ var isImpulseResponseLoaded = false;
 var applyGrainWindow = false;
 var grainWindow;
 
+var canvas;
+
+//IOS hack
+var isUnlocked = false;
 
 
 var parameters = {
@@ -39,11 +38,137 @@ var parameters = {
 }
 
 
+///////////////////////////////////INTERACTION SETUP////////////////////////////
+
+$('document').ready(function(){
+
+  canvas = $('#canvas')[0];
+  canvas.setAttribute('width', window.innerWidth);
+  canvas.setAttribute('height', window.innerHeight);
+  var ctxt = canvas.getContext('2d');
+  ctxt.fillStyle = "black";
+  ctxt.fillRect(0,0,canvas.width, canvas.height);
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  context = new AudioContext();
+  realTime = Math.max(0, context.currentTime);
+
+  init(); //makes the gui
+
+  canvas.addEventListener('touchstart', function() {
+
+    if(!isUnlocked){
+
+      unlock();
+      initAudio();
+
+    }
+
+  }, false);
+
+  canvas.addEventListener('touchend', function() {
+
+
+  }, false);
+
+
+  canvas.addEventListener('mousedown', function() {
+
+
+    //TODO solve sequence of loading and playback with unlock
+    console.log("md");
+    if(!isUnlocked){
+      initAudio();
+      isUnlocked = true;
+    }
+    else{
+      schedule();
+    }
+
+
+
+  }, false);
+
+  canvas.addEventListener('mouseup', function() {
+
+
+  }, false);
+
+
+});
+
+
+
+
+
+
+
+/////////////////////////////////////////////DRAW LOOP///////////////////////////////////////
+
+function schedule() {
+
+
+  var currentTime = context.currentTime;
+
+
+  while (realTime < currentTime + 0.100) {
+    scheduleGrain();
+
+  }
+
+  setTimeout("schedule()", 20);
+}
+
+
+///////////////////////////////////////////AUDIO HELPERS//////////////////////////////////////
+
+function initAudio() {
+
+  //loads the audio files and sets up nodes
+
+  // This check is a hack and will only be needed temporarily.
+  // The reason is that the noteGrainOn() method used to (in older builds) apply a hard-coded amplitude window.
+  // The newer and more flexible approach is that noteGrainOn() simply plays a portion of an AudioBuffer,
+  // without any gain scaling.  Then we can apply a gain scaling (which is desired in this example)
+  // by using an AudioGainNode.
+  // We check the existence of the decodeAudioData() only because this is the time when the change in noteGrainOn()
+  // behavior happened -- yucky, but only temporary since it can be removed in a few weeks when all builds have the new behavior.
+  if (context.decodeAudioData) {
+    applyGrainWindow = true;
+    // Create a granular synthesis "grain window"
+    // Each small audio snippet will have a smooth fade-in / fade-out according to this shape.
+    var grainWindowLength = 16384;
+    grainWindow = new Float32Array(grainWindowLength);
+    for (var i = 0; i < grainWindowLength; ++i)
+    grainWindow[i] = Math.sin(Math.PI * i / grainWindowLength);
+  } else {
+    applyGrainWindow = false;
+  }
+
+  if (context.createDynamicsCompressor) {
+    // Create dynamics compressor to sweeten the overall mix.
+    compressor = context.createDynamicsCompressor();
+    compressor.connect(context.destination);
+  } else {
+    // Compressor is not available on this implementation - bypass and simply point to destination.
+    compressor = context.destination;
+  }
+
+  // Create a convolver for ambience
+  //convolver = context.createConvolver();
+  //convolver.connect(compressor);
+
+  load();
+}
+
+
+
 function scheduleGrain() {
+
+  //plays an individual grain
 
   if (!buffer)
   return;
-
 
   var source = context.createBufferSource();
   source.buffer = buffer;
@@ -123,61 +248,18 @@ function scheduleGrain() {
 
   // Update time params
   realTime += grainSpacing;
+
+  console.log("rt: " , realTime);
+
   grainTime += parameters.speed.value * grainSpacing;
   if (grainTime > bufferDuration) grainTime = 0.0;
   if (grainTime < 0.0) grainTime += bufferDuration; // backwards wrap-around
-}
 
-function schedule() {
-
-  var currentTime = context.currentTime;
-
-  while (realTime < currentTime + 0.100) {
-    scheduleGrain();
-  }
-
-  setTimeout("schedule()", 20);
-}
-
-function initAudio() {
-  context = new AudioContext();
-
-  // This check is a hack and will only be needed temporarily.
-  // The reason is that the noteGrainOn() method used to (in older builds) apply a hard-coded amplitude window.
-  // The newer and more flexible approach is that noteGrainOn() simply plays a portion of an AudioBuffer,
-  // without any gain scaling.  Then we can apply a gain scaling (which is desired in this example)
-  // by using an AudioGainNode.
-  // We check the existence of the decodeAudioData() only because this is the time when the change in noteGrainOn()
-  // behavior happened -- yucky, but only temporary since it can be removed in a few weeks when all builds have the new behavior.
-  if (context.decodeAudioData) {
-    applyGrainWindow = true;
-    // Create a granular synthesis "grain window"
-    // Each small audio snippet will have a smooth fade-in / fade-out according to this shape.
-    var grainWindowLength = 16384;
-    grainWindow = new Float32Array(grainWindowLength);
-    for (var i = 0; i < grainWindowLength; ++i)
-    grainWindow[i] = Math.sin(Math.PI * i / grainWindowLength);
-  } else {
-    applyGrainWindow = false;
-  }
-
-  if (context.createDynamicsCompressor) {
-    // Create dynamics compressor to sweeten the overall mix.
-    compressor = context.createDynamicsCompressor();
-    compressor.connect(context.destination);
-  } else {
-    // Compressor is not available on this implementation - bypass and simply point to destination.
-    compressor = context.destination;
-  }
-
-  // Create a convolver for ambience
-  //convolver = context.createConvolver();
-  //convolver.connect(compressor);
-
-  load();
 }
 
 
+
+/////////////////////////////////////////////// GUI stuff ////////////////////////////////////////
 
 function ControlPanel()
 {
@@ -191,8 +273,6 @@ function ControlPanel()
   }
 
 }
-
-
 
 function init()
 {
@@ -236,10 +316,9 @@ function init()
   });
 
 
-  initAudio();
-
-
 }
+
+/////////////////////////////////////////FILE LOADING///////////////////////////////////////
 
 function load() {
   // loadImpulseResponse('impulse-responses/spatialized4.wav');
@@ -289,7 +368,7 @@ function loadHumanVoice(url) {
         buffer = b;
         bufferDuration = buffer.duration - 0.050;
         isSourceLoaded = true;
-        finishLoading();  // we have the voice, put up sliders and start playing...
+
       },
 
       function(buffer) {
@@ -305,17 +384,27 @@ function loadHumanVoice(url) {
   request.send();
 }
 
-function finishLoading() {
 
 
-  //  if (!isSourceLoaded || !isImpulseResponseLoaded)
-  //    return;
+//IOS workaround
 
-  // first, get rid of loading animation
-  //  var loading = document.getElementById("loading");
-  //  loading.innerHTML = "";
+function unlock() {
 
-  // start playing the granular effect
-  realTime = Math.max(0, context.currentTime);
-  schedule();
+  console.log("unlocking")
+
+  // create empty buffer and play it
+  var buffer = context.createBuffer(1, 1, 22050);
+  var source = context.createBufferSource();
+
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.noteOn(0);
+
+  // by checking the play state after some time, we know if we're really unlocked
+  setTimeout(function() {
+    if((source.playbackState === source.PLAYING_STATE || source.playbackState === source.FINISHED_STATE)) {
+      isUnlocked = true;
+    }
+  }, 10);
+
 }
