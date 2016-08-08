@@ -1,7 +1,7 @@
 //GLOBALS
 
 var canvas;
-var gui;
+var gui, f1, f2;
 var controlPanel;
 var audioContext;
 
@@ -118,8 +118,8 @@ function render() {
     // Iterate over all controllers
     if(gui !== undefined)
     {
-      for (var i in gui.__controllers) {
-        gui.__controllers[i].updateDisplay();
+      for (var i in f1.__controllers) {
+        f1.__controllers[i].updateDisplay();
       }
     }
 
@@ -157,10 +157,17 @@ function updateAudio()
 
     env.step();
 
+    for (var property in parameters)
+    {
+      if(controlPanel["map_" + property] == true)
+      {
+          parameters[property].value = linlin(env.z,0.0, 1.0, parameters[property].min, parameters[property].max);
+          //controlPanel[property] = parameters[property].value;
+      }
+    }
+
     if(env.z > 0.05)
     {
-
-
 
       while (realTime < currentTime + 0.100)
       {
@@ -208,7 +215,9 @@ function initAudio()
 
   //loadSample("samples/138344_reverse_crow.wav");
   //loadSample("samples/19997_blackbird_flap.wav");
-  loadSample("samples/19997_blackbird.wav");
+  //loadSample("samples/19997_blackbird.wav");
+  //loadSample("samples/57271_cat-bird.wav");
+  loadSample("samples/169830_dino009.wav");
   // this could be made more flexible
   env = new Envelope2(0.5,0.2,60);
 
@@ -307,6 +316,8 @@ function ControlPanel()
     if (parameters.hasOwnProperty(property))
     {
       this[property] = parameters[property].value;
+      this[ "map_" + property] = false;
+      this[ "range_" + property] = 0.01;
     }
   }
 
@@ -319,23 +330,33 @@ function init()
   controlPanel = new ControlPanel();
   gui = new dat.GUI();
   gui.remember(controlPanel);
-  var events = {};
+  f1 = gui.addFolder('fixedControl');
+  f2 = gui.addFolder('map');
+
+  var directEvents = {};
+  var mapEvents = {};
+
 
   for (var property in parameters)
   {
     if (parameters.hasOwnProperty(property)) {
       if(parameters[property].gui){
 
-        events[property] = gui.add(controlPanel, property, parameters[property].min, parameters[property].max);
+
+        directEvents[property] = f1.add(controlPanel, property, parameters[property].min, parameters[property].max);
+
+        mapEvents[property] = f2.add(controlPanel, "map_" + property );
+        mapEvents[property] = f2.add(controlPanel, "range_" + property );
+
 
         if(parameters[property].step !== "undefined")
         {
-          events[property].step(parameters[property].step);
+          directEvents[property].step(parameters[property].step);
         }
 
         if(!parameters[property].custom){
 
-          events[property].onChange(function(value) {
+          directEvents[property].onChange(function(value) {
             parameters[this.property].value = value;
             controlPanel[this.property] = value;
           });
@@ -346,10 +367,12 @@ function init()
     }
   }
 
+
+
   //CUSTOM HANDLERS
 
 
-  events.grainSize.onChange (function(val){
+  directEvents.grainSize.onChange (function(val){
     parameters.grainDuration.value = val;
     parameters.grainSpacing.value = 0.5 * parameters.grainDuration.value;
     parameters.grainSize.value = val;
