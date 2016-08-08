@@ -1,7 +1,7 @@
 //GLOBALS
 
 var canvas;
-var gui, f1, f2;
+var gui, folders;
 var controlPanel;
 var audioContext;
 
@@ -22,6 +22,14 @@ var isUnlocked = false;
 var synthOn = false;
 
 var env;
+
+var files = [
+  '138344_reverse_crow.wav',
+  '169830_dino009.wav',
+  '19997_blackbird.wav',
+  '19997_blackbird_flap.wav',
+  '57271_cat-bird.wav'
+]
 
 var parameters =
 {
@@ -118,8 +126,12 @@ function render() {
     // Iterate over all controllers
     if(gui !== undefined)
     {
-      for (var i in f1.__controllers) {
-        f1.__controllers[i].updateDisplay();
+      for( var p in folders)
+      {
+        for (var i in folders[p].__controllers)
+        {
+          folders[p].__controllers[i].updateDisplay();
+        }
       }
     }
 
@@ -161,8 +173,9 @@ function updateAudio()
     {
       if(controlPanel["map_" + property] == true)
       {
-          parameters[property].value = linlin(env.z,0.0, 1.0, parameters[property].min, parameters[property].max);
-          //controlPanel[property] = parameters[property].value;
+          parameters[property].value = linlin(env.z,0.0, 1.0,
+          controlPanel["min_" + property], controlPanel["max_" + property]);
+          controlPanel[property] = parameters[property].value;
       }
     }
 
@@ -212,12 +225,7 @@ function initAudio()
     compressor = audioContext.destination;
   }
 
-
-  //loadSample("samples/138344_reverse_crow.wav");
-  //loadSample("samples/19997_blackbird_flap.wav");
-  //loadSample("samples/19997_blackbird.wav");
-  //loadSample("samples/57271_cat-bird.wav");
-  loadSample("samples/169830_dino009.wav");
+  loadSample("samples/" + files[0]);
   // this could be made more flexible
   env = new Envelope2(0.5,0.2,60);
 
@@ -317,9 +325,14 @@ function ControlPanel()
     {
       this[property] = parameters[property].value;
       this[ "map_" + property] = false;
-      this[ "range_" + property] = 0.01;
+      this[ "min_" + property] = parameters[property].min;
+      this[ "max_" + property] = parameters[property].max;
+
     }
   }
+
+
+  this.sample = files[0];
 
 }
 
@@ -329,12 +342,22 @@ function init()
 
   controlPanel = new ControlPanel();
   gui = new dat.GUI();
+  folders = {};
   gui.remember(controlPanel);
-  f1 = gui.addFolder('fixedControl');
-  f2 = gui.addFolder('map');
+
+
+
+  var fileEvent = gui.add(controlPanel, 'sample', files );
+
+  fileEvent.onChange(function(value){
+
+    loadSample("samples/" + value);
+
+  });
+
+
 
   var directEvents = {};
-  var mapEvents = {};
 
 
   for (var property in parameters)
@@ -342,12 +365,12 @@ function init()
     if (parameters.hasOwnProperty(property)) {
       if(parameters[property].gui){
 
+        folders[property] = gui.addFolder(property);
+        directEvents[property] = folders[property].add(controlPanel, property, parameters[property].min, parameters[property].max);
 
-        directEvents[property] = f1.add(controlPanel, property, parameters[property].min, parameters[property].max);
-
-        mapEvents[property] = f2.add(controlPanel, "map_" + property );
-        mapEvents[property] = f2.add(controlPanel, "range_" + property );
-
+        folders[property].add(controlPanel, "map_" + property );
+        folders[property].add(controlPanel, "min_" + property, parameters[property].min, parameters[property].max ).step(0.01);
+        folders[property].add(controlPanel, "max_" + property, parameters[property].min, parameters[property].max ).step(0.01);
 
         if(parameters[property].step !== "undefined")
         {
@@ -442,3 +465,5 @@ function unlock() {
   }, 10);
 
 }
+
+//////////////////////

@@ -23,7 +23,7 @@ Rand = function(seed) {
   this.seed = Math.floor(rand(seed) * 100000);
 
   this.getRand = function(x){
-  
+
     var f  = fract(Math.sin(x)*1308153369613 + seed);
     return f;
   }
@@ -38,7 +38,7 @@ randCol = function(){
 
 generateTempId  = function(n){
 
-  var chars = "abcdefghijklmnnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ!@£$%^&*()-=_+";  
+  var chars = "abcdefghijklmnnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ!@£$%^&*()-=_+";
   var count = 0;
   var str = "";
   var idx;
@@ -60,8 +60,16 @@ linlin = function(input, i_min, i_max, o_min, o_max)
 {
   var i_range = Math.abs(i_max - i_min);
   var norm = (input - i_min)/i_range;
+  //reversing if min and max are otherway round
+  if(i_min > i_max){
+    norm = 1.0 - norm;
+  }
+  if(o_min > o_max)
+  {
+    norm = 1.0 - norm;
+  }
   var o_range = Math.abs(o_max - o_min);
-  var out = norm * o_range + o_min;
+  var out = norm * o_range + Math.min(o_min, o_max);
   return out;
 }
 
@@ -69,8 +77,17 @@ linexp = function(input, i_min, i_max, o_min, o_max, exp)
 {
   var i_range = Math.abs(i_max - i_min);
   var norm = (input - i_min)/i_range;
+
+  if(i_min > i_max){
+    norm = 1.0 - norm;
+  }
+  if(o_min > o_max)
+  {
+    norm = 1.0 - norm;
+  }
+
   var o_range = Math.abs(o_max - o_min);
-  var out = Math.pow(norm,exp) * o_range + o_min;
+  var out = Math.pow(norm,exp) * o_range + Math.min(o_min, o_max);
   return out;
 }
 
@@ -85,12 +102,12 @@ Envelope = function(time, sampleRate)
   this.z = 0.0;
   this.time = time;
   this.targetVal = 0.0;
-  this.sampleRate = sampleRate; 
+  this.sampleRate = sampleRate;
 
 
   this.step = function()
   {
-    this.z = this.targetVal * this.a + this.z * this.b; 
+    this.z = this.targetVal * this.a + this.z * this.b;
     return this.z;
   }
 
@@ -116,7 +133,7 @@ Envelope2 = function(attTime, decTime, sampleRate)
   this.z = 0.0;
 
   this.targetVal = 0.0;
-  this.sampleRate = sampleRate; 
+  this.sampleRate = sampleRate;
 
 
   this.step = function()
@@ -127,13 +144,13 @@ Envelope2 = function(attTime, decTime, sampleRate)
     }
     else if(this.targetVal < this.z)
     {
-      this.z = this.targetVal * this.a_dec + this.z * this.b_dec; 
+      this.z = this.targetVal * this.a_dec + this.z * this.b_dec;
     }
     else
     {
-      this.z = this.targetVal * this.a_att + this.z * this.b_att; 
+      this.z = this.targetVal * this.a_att + this.z * this.b_att;
     }
- 
+
   }
 
   this.setAttDel = function(attTime, decTime)
