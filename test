@@ -1,2 +1,18 @@
-var files = {
-138344_reverse_crow: '138344_reverse_crow.wav', 169830_dino009: '169830_dino009.wav', 19997_blackbird: '19997_blackbird.wav', 19997_blackbird_flap: '19997_blackbird_flap.wav', 57271_cat-bird: '57271_cat-bird.wav',  } 
+var files = [
+'125309_water-down-drain_reverse.wav', 
+'138344_reverse_crow.wav', 
+'169830_dino009.wav', 
+'195069__punpcklbw__drain.wav', 
+'19997_blackbird.wav', 
+'19997_blackbird_flap.wav', 
+'222804_engine-idle.wav', 
+'235443_sandhill-crane.wav', 
+'240476_wings_.wav', 
+'262307__steffcaffrey__cat-happy-purr-twitter2.wav', 
+'262308__steffcaffrey__cat-happy-purr-twit3.wav', 
+'262310__steffcaffrey__cat-purr-twit5.wav', 
+'262311__steffcaffrey__cat-purr-twit6.wav', 
+'319512_pigeon_low.wav', 
+'57271_cat-bird.wav', 
+'95615-low-sounding-engine_reverse.wav', 
+ ] 

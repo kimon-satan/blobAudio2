@@ -2,15 +2,14 @@
 
 SEARCH_DIR="./samples"
 
-echo "var files = {" > test
+echo "var files = [" > test
 
 for entry in "$SEARCH_DIR"/* 
 do
+    echo -n  "'" >> test
     it=${entry##*/}
-    echo -n ${it%.wav} >> test
-    echo -n ": '" >> test
     echo -n ${it} >> test
-    echo -n "', " >> test
+    echo "', " >> test
 done
 
-echo " } " >> test
+echo " ] " >> test

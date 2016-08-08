@@ -23,16 +23,31 @@ var synthOn = false;
 
 var env;
 
+
 var files = [
-  '138344_reverse_crow.wav',
-  '169830_dino009.wav',
-  '19997_blackbird.wav',
-  '19997_blackbird_flap.wav',
-  '57271_cat-bird.wav'
-]
+'125309_water-down-drain_reverse.wav',
+'138344_reverse_crow.wav',
+'169830_dino009.wav',
+'195069__punpcklbw__drain.wav',
+'19997_blackbird.wav',
+'19997_blackbird_flap.wav',
+'222804_engine-idle.wav',
+'235443_sandhill-crane.wav',
+'240476_wings_.wav',
+'262307__steffcaffrey__cat-happy-purr-twitter2.wav',
+'262308__steffcaffrey__cat-happy-purr-twit3.wav',
+'262310__steffcaffrey__cat-purr-twit5.wav', 
+'262311__steffcaffrey__cat-purr-twit6.wav',
+'319512_pigeon_low.wav',
+'57271_cat-bird.wav',
+'95615-low-sounding-engine_reverse.wav',
+ ]
+
+
 
 var parameters =
 {
+  amp: {value: 0.5, min: 0.0, max: 1.0, gui: true , step: 0.01},
   speed: {value: 0.333, min: -4.0, max: 4.0, gui: true , step: 0.01},
   pitch: {value: 1.0, min: 1.0, max: 3600, gui: true, step: 10},
   pitchRandomization: {value: 0.0, min: 0.0, max: 1200.0, gui: true, step: 10},
@@ -41,7 +56,7 @@ var parameters =
   grainDuration:{value: 0.09 , min:0.010, max:0.5, gui:true , step: 0.001},
   grainSpacing:{value: 0.045 , min:0.010, max:0.5, gui:true , step: 0.001},
   regionStart: {value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.001},
-  regionLength: {value: 0.01 , min:0.0, max:2.0, gui:true , step : 0.01}
+  regionLength: {value: 0.01 , min:0.0, max:10.0, gui:true , step : 0.01}
 }
 
 
@@ -179,7 +194,7 @@ function updateAudio()
       }
     }
 
-    if(env.z > 0.05)
+    if(env.z > 0.005)
     {
 
       while (realTime < currentTime + 0.100)
@@ -255,7 +270,7 @@ function nextGrain()
   var grainWindowNode;
 
   var gainNode = audioContext.createGain();
-  gainNode.gain.value =  env.z;
+  gainNode.gain.value =  parameters.amp.value;
 
   if (applyGrainWindow) {
     // Create a gain node with a special "grain window" shaping curve.
