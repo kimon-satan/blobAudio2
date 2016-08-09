@@ -30,37 +30,35 @@ var env = [
   new Envelope2(0.01,0.2,60)
 ];
 
-
-
 var files = [
-'125309_water-down-drain_reverse.wav',
 '138344_reverse_crow.wav',
 '169830_dino009.wav',
-'195069__punpcklbw__drain.wav',
 '19997_blackbird.wav',
 '19997_blackbird_flap.wav',
 '20472_woodpigeonnr_01.wav',
 '20472_woodpigeonnr_02.wav',
 '20472_woodpigeonnr_03.wav',
-'222804_engine-idle.wav',
 '235443_sandhill-crane.wav',
 '240476_wings_.wav',
 '262307__steffcaffrey__cat-happy-purr-twitter2.wav',
 '262308__steffcaffrey__cat-happy-purr-twit3.wav',
 '262310__steffcaffrey__cat-purr-twit5.wav',
 '262311__steffcaffrey__cat-purr-twit6.wav',
+'278903__syntheway__guardians-of-limbo-syntheway-magnus-choir-vsti.wav',
 '319512_pigeon_low.wav',
 '319512_pigeon_select.wav',
 '57271_cat-bird.wav',
-'95615-low-sounding-engine_reverse.wav',
- ]
-
-
+'66637_crying-baby-2.wav',
+'66637_crying-baby-2b.wav',
+'66637_crying-baby-3.wav',
+'66637_crying-baby-4.wav',
+'66637_crying-baby-select.wav',
+ ] 
 
 var parameters =
 {
   amp: {value: 0.5, min: 0.0, max: 1.0, gui: true , step: 0.01},
-  speed: {value: 0.333, min: -4.0, max: 4.0, gui: true , step: 0.01},
+  speed: {value: 0.0, min: -4.0, max: 4.0, gui: true , step: 0.01},
   pitch: {value: 1.0, min: 1.0, max: 3600, gui: true, step: 10},
   pitchRandomization: {value: 0.0, min: 0.0, max: 1200.0, gui: true, step: 10},
   timeRandomization:{value: 0.01 , min:0.0, max:1.0, gui:true , step : 0.01},
@@ -353,24 +351,30 @@ function nextGrain()
     grainWindowNode.gain.setValueCurveAtTime(grainWindow, realTime, windowDuration);
   }
 
-  var lastGrainTime = grainTime;
 
   // Update time params
   realTime += parameters.grainSpacing.value;
 
-  grainTime += parameters.speed.value * parameters.grainDuration.value;
-
-  //grain time wrapping
-  var regionStart = parameters.regionStart.value * bufferDuration;
-  var regionEnd = Math.min(bufferDuration, regionStart  + parameters.regionLength.value);
-
-  if (grainTime > regionEnd)
+  if(Math.abs(parameters.speed) > 0)
   {
-    grainTime = regionStart;
-  }
-  else if (grainTime < regionStart)
-  {
-    grainTime += Math.min( bufferDuration - regionStart, parameters.regionLength.value);
+
+    grainTime += parameters.speed.value * parameters.grainDuration.value;
+
+    //grain time wrapping
+    var regionStart = parameters.regionStart.value * bufferDuration;
+    var regionEnd = Math.min(bufferDuration, regionStart  + parameters.regionLength.value);
+
+    if (grainTime > regionEnd)
+    {
+      grainTime = regionStart;
+    }
+    else if (grainTime < regionStart)
+    {
+      grainTime += Math.min( bufferDuration - regionStart, parameters.regionLength.value);
+    }
+
+  }else{
+    grainTime = parameters.regionStart.value * bufferDuration;
   }
 
 }
