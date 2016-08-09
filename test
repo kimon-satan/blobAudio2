@@ -5,6 +5,9 @@ var files = [
 '195069__punpcklbw__drain.wav', 
 '19997_blackbird.wav', 
 '19997_blackbird_flap.wav', 
+'20472_woodpigeonnr_01.wav', 
+'20472_woodpigeonnr_02.wav', 
+'20472_woodpigeonnr_03.wav', 
 '222804_engine-idle.wav', 
 '235443_sandhill-crane.wav', 
 '240476_wings_.wav', 
@@ -13,6 +16,7 @@ var files = [
 '262310__steffcaffrey__cat-purr-twit5.wav', 
 '262311__steffcaffrey__cat-purr-twit6.wav', 
 '319512_pigeon_low.wav', 
+'319512_pigeon_select.wav', 
 '57271_cat-bird.wav', 
 '95615-low-sounding-engine_reverse.wav', 
  ] 

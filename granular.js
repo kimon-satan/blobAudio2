@@ -3,6 +3,7 @@
 var canvas;
 var gui, folders;
 var controlPanel;
+
 var audioContext;
 
 var compressor;
@@ -21,7 +22,14 @@ var grainWindow;
 var isUnlocked = false;
 var synthOn = false;
 
-var env;
+var envPanel, envGui;
+
+var env = [
+  new Envelope2(0.01,0.2,60),
+  new Envelope2(0.01,0.2,60),
+  new Envelope2(0.01,0.2,60)
+];
+
 
 
 var files = [
@@ -31,14 +39,18 @@ var files = [
 '195069__punpcklbw__drain.wav',
 '19997_blackbird.wav',
 '19997_blackbird_flap.wav',
+'20472_woodpigeonnr_01.wav',
+'20472_woodpigeonnr_02.wav',
+'20472_woodpigeonnr_03.wav',
 '222804_engine-idle.wav',
 '235443_sandhill-crane.wav',
 '240476_wings_.wav',
 '262307__steffcaffrey__cat-happy-purr-twitter2.wav',
 '262308__steffcaffrey__cat-happy-purr-twit3.wav',
-'262310__steffcaffrey__cat-purr-twit5.wav', 
+'262310__steffcaffrey__cat-purr-twit5.wav',
 '262311__steffcaffrey__cat-purr-twit6.wav',
 '319512_pigeon_low.wav',
+'319512_pigeon_select.wav',
 '57271_cat-bird.wav',
 '95615-low-sounding-engine_reverse.wav',
  ]
@@ -66,7 +78,7 @@ $('document').ready(function(){
 
   canvas = $('#canvas')[0];
   canvas.setAttribute('width', window.innerWidth);
-  canvas.setAttribute('height', window.innerHeight);
+  canvas.setAttribute('height', 250);
   var ctxt = canvas.getContext('2d');
 
   window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -85,15 +97,19 @@ $('document').ready(function(){
 
     }
 
-    env.targetVal = 1.0;
-
+    for(var i = 0; i < env.length; i++)
+    {
+      env[i].targetVal = 1.0;
+    }
 
   }, false);
 
   canvas.addEventListener('touchend', function() {
 
-    env.targetVal = 0.0;
-
+    for(var i = 0; i < env.length; i++)
+    {
+      env[i].targetVal = 0.0;
+    }
 
   }, false);
 
@@ -105,14 +121,20 @@ $('document').ready(function(){
     }
 
 
-    env.targetVal = 1.0;
+    for(var i = 0; i < env.length; i++)
+    {
+      env[i].targetVal = 1.0;
+    }
 
 
   }, false);
 
   canvas.addEventListener('mouseup', function() {
 
-    env.targetVal = 0.0;
+    for(var i = 0; i < env.length; i++)
+    {
+      env[i].targetVal = 0.0;
+    }
 
   }, false);
 
@@ -138,14 +160,19 @@ function render() {
     updateAudio();
     draw();
 
-    // Iterate over all controllers
+    //Iterate over all controllers
     if(gui !== undefined)
     {
       for( var p in folders)
       {
         for (var i in folders[p].__controllers)
         {
-          folders[p].__controllers[i].updateDisplay();
+
+          if(folders[p].__controllers[i].property.substring(0,4) != "map_")
+          {
+            folders[p].__controllers[i].updateDisplay();
+          }
+
         }
       }
     }
@@ -164,11 +191,16 @@ function draw()
   var ctx = canvas.getContext("2d");
   ctx.fillStyle = "black";
   ctx.fillRect(0,0,canvas.width, canvas.height);
-  var radius = env.z * 100.0;
-  ctx.fillStyle="#FF0000";
-  ctx.beginPath();
-  ctx.arc(200,200,radius,0,2*Math.PI);
-  ctx.fill();
+
+  for(var i = 0; i < env.length; i++)
+  {
+    var radius = env[i].z * 100.0;
+    var h = i * 360.0/env.length;
+    ctx.fillStyle= 'hsl( ' + h +',100%,50%)';
+    ctx.beginPath();
+    ctx.arc(125 + 200 * i,125,radius,0,2*Math.PI);
+    ctx.fill();
+  }
 
 }
 
@@ -182,22 +214,39 @@ function updateAudio()
 {
     var currentTime = audioContext.currentTime;
 
-    env.step();
+    for(var i = 0; i < env.length; i++)
+    {
+      env[i].step();
+    }
 
     for (var property in parameters)
     {
-      if(controlPanel["map_" + property] == true)
+
+      if(controlPanel["map_" + property] > -1 )
       {
-          parameters[property].value = linlin(env.z,0.0, 1.0,
+          var i = parseInt(controlPanel["map_" + property]);
+          parameters[property].value = linlin(env[i].z,0.0, 1.0,
           controlPanel["min_" + property], controlPanel["max_" + property]);
           controlPanel[property] = parameters[property].value;
       }
     }
 
-    if(env.z > 0.005)
+
+    var envsActive = false;
+
+    for(var i = 0; i < env.length; i++)
+    {
+      if(env[i].z > 0.005)
+      {
+        envsActive = true;
+        break;
+      }
+    }
+
+    if(envsActive)
     {
 
-      while (realTime < currentTime + 0.100)
+     while (realTime < currentTime + 0.100)
       {
         nextGrain();
       }
@@ -241,8 +290,7 @@ function initAudio()
   }
 
   loadSample("samples/" + files[0]);
-  // this could be made more flexible
-  env = new Envelope2(0.5,0.2,60);
+
 
 }
 
@@ -331,6 +379,17 @@ function nextGrain()
 
 /////////////////////////////////////////////// GUI stuff ////////////////////////////////////////
 
+function EnvPanel() {
+
+  for(var i =0; i < env.length; i++)
+  {
+    this[ i + "_attack" ] = env[i].attTime;
+    this[ i + "_decay" ] = env[i].decTime;
+  }
+
+}
+
+
 function ControlPanel()
 {
 
@@ -339,7 +398,7 @@ function ControlPanel()
     if (parameters.hasOwnProperty(property))
     {
       this[property] = parameters[property].value;
-      this[ "map_" + property] = false;
+      this[ "map_" + property] = -1;
       this[ "min_" + property] = parameters[property].min;
       this[ "max_" + property] = parameters[property].max;
 
@@ -351,15 +410,38 @@ function ControlPanel()
 
 }
 
+
 function init()
 {
 
+  envPanel = new EnvPanel();
+  envGui = new dat.GUI({ autoPlace: false });
+  envGui.remember(envPanel);
+
+  $('#envGui').append(envGui.domElement);
+
+  for(var i = 0; i < env.length; i++)
+  {
+    var ae = envGui.add(envPanel, i + "_attack", 0.0, 5.0).step(0.01);
+    var de = envGui.add(envPanel, i + "_decay", 0.0, 5.0).step(0.01);
+
+    ae.onChange(function(value){
+        var i = parseInt(this.property.substring(0,1));
+        env[i].attTime = value;
+        env[i].reset();
+    })
+
+    de.onChange(function(value){
+      var i = parseInt(this.property.substring(0,1));
+      env[i].decTime = value;
+      env[i].reset();
+    })
+  }
 
   controlPanel = new ControlPanel();
   gui = new dat.GUI();
   folders = {};
-  gui.remember(controlPanel);
-
+  gui.remember(controlPanel); //causes problems
 
 
   var fileEvent = gui.add(controlPanel, 'sample', files );
@@ -369,8 +451,6 @@ function init()
     loadSample("samples/" + value);
 
   });
-
-
 
   var directEvents = {};
 
@@ -383,7 +463,7 @@ function init()
         folders[property] = gui.addFolder(property);
         directEvents[property] = folders[property].add(controlPanel, property, parameters[property].min, parameters[property].max);
 
-        folders[property].add(controlPanel, "map_" + property );
+        folders[property].add(controlPanel, "map_" + property, [-1, 0, 1, 2] );
         folders[property].add(controlPanel, "min_" + property, parameters[property].min, parameters[property].max ).step(0.01);
         folders[property].add(controlPanel, "max_" + property, parameters[property].min, parameters[property].max ).step(0.01);
 

@@ -164,6 +164,11 @@ Envelope2 = function(attTime, decTime, sampleRate)
     this.a_dec = 1.0 - this.b_dec;
   }
 
+  this.reset = function(){
+    this.setAttDel(this.attTime, this.decTime);
+    this.z = 0.0;
+  }
+
   this.setAttDel(attTime, decTime);
 
 }
